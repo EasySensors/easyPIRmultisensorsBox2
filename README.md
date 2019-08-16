@@ -13,7 +13,7 @@ Best sutable for Home Automation, IOT.  You may think of it as Arduino Pro Mini 
 ## Specification: ##
 
  - MCU Atmel ATMega328P 8MHz) microcontroller
- - Radio- HopeRF RFM 69 CW or RFM 69 HCW or RFM 95 LoRa  (915, 868 0r 433 MHz) or Nordic Semiconductor NRF 24L01+ radio on board
+ - Radio- HopeRF RFM 69 CW or RFM 69 HCW or RFM 95 LoRa  (915, 868 0r 433 MHz) radio on board
  - Enclosure dimensions 95mm*40mm*20mm 
  - Powered by two AA batteries
  - Booster converter alows to work from batteries drained as low as 0.7V combined
