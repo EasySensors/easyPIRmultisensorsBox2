@@ -8,7 +8,7 @@
 
 Best sutable for Home Automation, IOT.  You may think of it as Arduino Pro Mini plus all the items in the picture below:
 
-![Arduino PIR]((https://github.com/EasySensors/easyPIRmultisensorsBox2/blob/master/pics/replcePIR2.jpg?raw=true)
+![Arduino PIR](https://github.com/EasySensors/easyPIRmultisensorsBox2/blob/master/pics/replcePIR2.jpg?raw=true)
 
 ## Specification: ##
 
