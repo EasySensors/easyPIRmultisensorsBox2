@@ -27,7 +27,7 @@ Best sutable for Home Automation, IOT.  You may think of it as Arduino Pro Mini 
  - Dualoptiboot bootloader. Implements over the air (OTA) firmware update ability
  - FTDI  header for programming
  - Reverse polarity protection.
- - Arduino pins A0 A1 pads on PCB for any special needs.
+ - Arduino pins A0 A1 have pads on PCB for any special needs.
  - PIR triggers hardware interrupt 1
 
 
