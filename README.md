@@ -30,6 +30,26 @@ Best sutable for Home Automation, IOT.  You may think of it as Arduino Pro Mini 
  - Arduino pins A0 A1 have pads on PCB for any special needs.
  - PIR triggers hardware interrupt 1
 
+**Pin out:** 
+
+
+Arduino Pins|	Description
+------------|--------------
+A0, A1 |	Available ARDUINO analog GPIO / DIGITAL GPIO as PCB pads close to radio module
+A6 |	Connected to Battery voltage sensor (via divider) 3M/470k 
+A4 |	Connected to sensors i2c
+A5 |	Connected to sensors i2c
+A3 |	Connected to  ATSHA204A
+D3 | Connected to  PIR sensor
+D4 | Connected to  LED connected
+D5 | Connected to  LED connected
+D8 |	Connected to CS FLASH chip (OTA) M25P40
+D2 |	Connected to RFM 69 DIO0 
+D9 | Connected to RFM 69 Reset pin 
+D10 |	Connected to RFM 69 CS/NSS
+D11 |	Connected to  MOSI
+D12 |	Connected to  MISO
+D13 |	Connected to  SCK
 
 
 **Arduino IDE Settings**
@@ -49,9 +69,13 @@ easyPIRmultisensorsBox.ino is the Arduino example sketch using [MySensors](https
 
 
 Connect the Node to FTDI USB adaptor, Select Pro Mini 8MHz board in Arduino IDE and upload the sketch.
+Connect the Node to FTDI USB adaptor, Select Pro Mini 8MHz board in Arduino IDE and upload the easyPIRmultisensorsBoxWithTempHumSensor.ino. The skecth will create node fith fixed address in Mysensors network.
+
+
 
 **Done**
 
+[Schematics](https://github.com/EasySensors/easyPIRmultisensorsBox2/blob/master/PIR_29_08_19.PDF)
 
 The board designed by  [Koresh](https://www.openhardware.io/user/143/projects/Koresh)
 
