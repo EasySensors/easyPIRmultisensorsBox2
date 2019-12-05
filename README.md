@@ -40,9 +40,10 @@ A6 |	Connected to Battery voltage sensor (via divider) 3M/470k
 A4 |	Connected to sensors i2c
 A5 |	Connected to sensors i2c
 A3 |	Connected to  ATSHA204A
-D3 | Connected to  PIR sensor
-D4 | Connected to  LED connected
-D5 | Connected to  LED connected
+D3 |	Connected to  Magnet sensor
+D5 | Connected to  GREEN_LED_PIN
+D6 | Connected to  RED_LED_PIN
+D7 | Connected to  PIR sensor  PCINT23 (Older version of the board had PIR was connected to D3 INT1)
 D8 |	Connected to CS FLASH chip (OTA) M25P40
 D2 |	Connected to RFM 69 DIO0 
 D9 | Connected to RFM 69 Reset pin 
