@@ -75,7 +75,7 @@ Connect the Node to FTDI USB adaptor, Select Pro Mini 8MHz board in Arduino IDE 
 
 **Done**
 
-[Schematics](https://github.com/EasySensors/easyPIRmultisensorsBox2/blob/master/PIR_29_08_19.PDF)
+[Schematics](https://github.com/EasySensors/easyPIRmultisensorsBox2/blob/master/Schematics_pir_magnet_window_sensor.PDF)
 
 The board designed by  [Koresh](https://www.openhardware.io/user/143/projects/Koresh)
 
