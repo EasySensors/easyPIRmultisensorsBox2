@@ -28,7 +28,8 @@ Best sutable for Home Automation, IOT.  You may think of it as Arduino Pro Mini 
  - FTDI  header for programming
  - Reverse polarity protection.
  - Arduino pins A0 A1 have pads on PCB for any special needs.
- - PIR triggers hardware interrupt 1
+ - PIR triggers interrupt PCINT23 D7
+ - Magnet sensor triggers hardware interrupt 1
 
 **Pin out:** 
 
