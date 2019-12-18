@@ -55,6 +55,7 @@ D11 |	Connected to  MOSI
 D12 |	Connected to  MISO
 D13 |	Connected to  SCK
 
+![enter image description here](https://github.com/EasySensors/easyPIRmultisensorsBox2/blob/master/pics/FTDIpinout.png?raw=true)
 
 **Arduino IDE Settings**
 
