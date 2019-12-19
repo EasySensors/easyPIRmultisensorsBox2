@@ -73,8 +73,8 @@ How to use it as home automation (IOT) node controller
 easyPIRmultisensorsBox.ino is the Arduino example sketch using [MySensors](https://www.mysensors.org/) API. 
 
 
-Connect the Node to FTDI USB adaptor, Select Pro Mini 8MHz board in Arduino IDE and upload the sketch.
-Connect the Node to FTDI USB adaptor, Select Pro Mini 8MHz board in Arduino IDE and upload the easyPIRmultisensorsBoxWithTempHumSensor.ino. The skecth will create node fith fixed address in Mysensors network.
+Connect the Node to FTDI USB adaptor, Select Pro Mini 8MHz board in Arduino IDE and upload the example sketch sketch.
+The skecth will create node fith fixed address in Mysensors network.
 
 
 
