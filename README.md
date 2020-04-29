@@ -70,12 +70,21 @@ D13 |	Connected to  SCK
 How to use it as home automation (IOT) node controller
 ------------------------------------------------------
 
-easyPIRmultisensorsBox.ino is the Arduino example sketch using [MySensors](https://www.mysensors.org/) API. 
+easyPirPCINTdoorSensor.ino is the Arduino example sketch using [MySensors](https://www.mysensors.org/) API. 
 
 
 Connect the Node to FTDI USB adaptor, Select Pro Mini 8MHz board in Arduino IDE and upload the example sketch sketch.
 The skecth will create node fith fixed address in Mysensors network.
 
+The Sketch will create a number of sensors for a controller which you can use or ignore (comment it out in the code).
+PIR_sensor - actual PIR sensor which toggles 0 and 1 when something moving around
+VIS_sensor  - The code reports new LUX readings each time the PIR sensor wakes up the unit. 
+DummyDimmerLUXvalue_sensor - well, this is a workaround for the PIR threshold.  By default when a fresh unit uploaded with the new code, PIR sensor changes will always be reported. If you like to make it less sensitive add  DummyDimmerLUXvalue_sensor  as dimmer in the controller and set maximum LUX value when PIR reports movement. I could not find any easier way sending values back to the sensor from conroller so far.
+ 
+HUM_sensor - humidity sensor. The code reports a new value if any changes in humidity readings happened after the PIR sensor wakes up the unit. 
+TEMP_sensor - The code reports a new temperature if any changes happened after the PIR sensor wakes up the unit.
+
+msg_mag - magnet sensor, since the board has the magnetic sensor soldered the sketch shares the same code as for door sensor. Same reporting logic for the temperature and Humidity applied for the magnet sensor. Comment it out if you do not need it. 
 
 
 **Done**
