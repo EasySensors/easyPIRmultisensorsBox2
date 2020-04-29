@@ -84,7 +84,7 @@ DummyDimmerLUXvalue_sensor - well, this is a workaround for the PIR threshold.  
 HUM_sensor - humidity sensor. The code reports a new value if any changes in humidity readings happened after the PIR sensor wakes up the unit. 
 TEMP_sensor - The code reports a new temperature if any changes happened after the PIR sensor wakes up the unit.
 
-msg_mag - magnet sensor, since the board has the magnetic sensor soldered the sketch shares the same code as for door sensor. Same reporting logic for the temperature and Humidity applied for the magnet sensor. Comment it out if you do not need it. 
+MAG_sensor - magnet sensor, since the board has the magnetic sensor soldered the sketch shares the same code as for door sensor. Same reporting logic for the temperature and Humidity applied for the magnet sensor. Comment it out if you do not need it. 
 
 
 **Done**
