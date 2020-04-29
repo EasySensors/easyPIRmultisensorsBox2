@@ -26,6 +26,7 @@
   #include <avr/power.h>
 #endif
 
+// Enable and select radio type attached MY_RADIO_RFM95
 //#define MY_RADIO_RFM95
 //#define MY_RFM95_MODEM_CONFIGRUATION  RFM95_BW125CR45SF128
 #define MY_RFM95_MODEM_CONFIGRUATION RFM95_BW_500KHZ | RFM95_CODING_RATE_4_5, RFM95_SPREADING_FACTOR_2048CPS | RFM95_RX_PAYLOAD_CRC_ON, RFM95_AGC_AUTO_ON // 
@@ -42,15 +43,17 @@
 #define RFM95_RETRY_TIMEOUT_MS      (2500ul)      //!< Timeout for ACK, adjustments needed if modem configuration changed (air time different)
 
 //#define   MY_RFM95_FREQUENCY RFM95_915MHZ
-//#define   MY_RFM95_FREQUENCY RFM95_868MHZ
+#define   MY_RFM95_FREQUENCY RFM95_868MHZ
 //#define   MY_RFM95_FREQUENCY RFM95_433MHZ
 
 
 
-// Enable and select radio type attached
+// Enable and select radio type attached MY_RADIO_RFM69
 #define MY_RADIO_RFM69
 //#define MY_IS_RFM69HW
 #define MY_RFM69_TX_POWER_DBM (13) 
+
+//#define MY_RFM69_NETWORKID 111
 
 // if you use MySensors 2.0 use this style 
 //#define MY_RFM69_FREQUENCY   RFM69_433MHZ
@@ -59,12 +62,10 @@
 
 
 // Comment it out for Auto Node ID #
-#define MY_NODE_ID 0xD0
-
+#define MY_NODE_ID  209 //D4 0xf0
 
 int relayNodeIDPIRSensor  = 0x0; // Relay addressess to send switch ON\OFF states. Can be any address; 0 is SmartHome controller address.
 int relayNodeIDmagSensor  = 0x0; // Relay addressess to send switch ON\OFF states. Can be any address; 0 is SmartHome controller address.
-int relayChildID  = 1; //0 value means no need to report\present it to controller;
 
 
 // Avoid battery drain if Gateway disconnected and the node sends more than MY_TRANSPORT_STATE_RETRIES times message.
@@ -114,7 +115,7 @@ Weather sensor;
 #define HUM_sensor 3
 #define TEMP_sensor 4
 #define VIS_sensor 5
-
+#define DummyDimmerLUXvalue_sensor 6
 
 // Create MyMessage Instance for sending readins from sensors to gateway\controller (they will be created as child devices)
 
@@ -123,6 +124,7 @@ MyMessage msg_mag(MAG_sensor, V_LIGHT);
 MyMessage msg_hum(HUM_sensor, V_HUM);
 MyMessage msg_temp(TEMP_sensor, V_TEMP);
 MyMessage msg_vis(VIS_sensor, V_LEVEL); //V_LIGHT_LEVEL
+MyMessage msg_LUXvalue_sensor(DummyDimmerLUXvalue_sensor, V_PERCENTAGE); 
 
 unsigned long wdiDelay2  = 0;
 
@@ -131,7 +133,8 @@ int BATTERY_SENSE_PIN = A6;  // select the input pin for the battery sense point
 static int32_t oldLux = 0, lux;
 static int16_t oldHumdty = 0, humdty;
 static int16_t oldTemp = 0, temp;
-
+static uint8_t LUXthreshold;
+uint8_t batteryPcnt; 
 
 
 volatile bool flagIntPIR = false, flagIntMagnet = false;
@@ -155,69 +158,88 @@ void magnetSensorInterruptHandler(){
   flagIntMagnet = true;
 }
 
+void blinkSensorLed(int  i){
+  batteryPcnt > 10 ?  blinkGreenSensorLed(i): blinkRedSensorLed(i);
+}
 
-void blinkGreenSensorLed(int  i = 1){
+void blinkGreenSensorLed(int  i){
   for (;i>0;i--){
     digitalWrite(GREEN_LED_PIN, HIGH);
     wait(50);
     digitalWrite(GREEN_LED_PIN, LOW);
+    if (i > 1) {wait(50);}
   }
 }
-void blinkRedSensorLed(int  i = 1){
+void blinkRedSensorLed(int  i){
   for (;i>0;i--){
   digitalWrite(RED_LED_PIN, HIGH);
   wait(50);
   digitalWrite(RED_LED_PIN, LOW);
+  if (i > 1) {wait(50);}
   }
 }
 
-void battery_report(){
-return;
+void batteryReport(){
   static int oldBatteryPcnt = 0;
 
   // Get the battery Voltage
   int sensorValue = analogRead(BATTERY_SENSE_PIN);
   /* 1M, 470K divider across batteries
-   * 610 ~ 100 % is close to 6.1 V
-   * 400 ~ 0 % is close to 4V
+   *  Vsource = Vout * R2 / (R2+R1)   = 7,383 * Vout;
+   *  we use internal refference voltage of 1.1 Volts. Means 1023 Analg Input values  = 1.1Volts
+   *  2 v for batteries in series is close to dead bateries. analog Read value for 2 V is  595.  100% = 960 or more 
+   *  something in between is working range.
    */
-  int batteryPcnt = (sensorValue - 400)  / 2;
+  batteryPcnt = (sensorValue - 595)  / 3.64;
   
   batteryPcnt = batteryPcnt > 0 ? batteryPcnt:0; // Cut down negative values. Just in case the battery goes below 4V and the node still working. 
   batteryPcnt = batteryPcnt < 100 ? batteryPcnt:100; // Cut down more than "100%" values. In case of ADC fluctuations. 
-
-  if (oldBatteryPcnt != batteryPcnt ) {
-    wait(100);
+  //Serial.print("sensorValue  ");   Serial.println(sensorValue);  
+  if (oldBatteryPcnt != batteryPcnt || batteryPcnt == 0 ) {
     sendBatteryLevel(batteryPcnt);
+    // this wait(); is 2.0 and up RFM69 specific. Hope to get rid of it soon
+    // TSF:MSG:SEND,238-238-0-0,s=255,c=3,t=0,pt=1,l=1,sg=0,ft=0,st=OK:100
+    wait(500, 3, 0);     
     oldBatteryPcnt = batteryPcnt;
   }
 
 }
 
-void swarm_report()
+
+void lightReport()
+{
+  char visualLight[10];
+
+  lightMeter.begin(BH1750::ONE_TIME_LOW_RES_MODE); // need for correct wake up
+  lux = lightMeter.readLightLevel(true);// Get Lux value
+  // dtostrf(); converts float into string
+  dtostrf(lux,5,0,visualLight);
+  //if ( oldLux != lux ) {
+    send(msg_vis.set(visualLight), true);  // Send LIGHT BH1750     sensor readings
+    // this wait(); is 2.0 and up RFM69 specific. Hope to get rid of it soon
+    // TSF:MSG:SEND,209-209-0-0,s=5,c=1,t=37,pt=0,l=5,sg=0,ft=0,st=OK: 
+    // waiting up to xxx millis ACK of type 37 message t=37
+    wait(500, 1, 37);       
+    oldLux = lux;
+  //}
+}
+
+void TempHumReport()
 {
   char humiditySi7021[10];
   char tempSi7021[10];
   char visualLight[10];
-
-  lightMeter.begin(BH1750::ONE_TIME_LOW_RES_MODE); // need for correct wake up
-  lux = lightMeter.readLightLevel();// Get Lux value
-  // dtostrf(); converts float into string
-  dtostrf(lux,5,0,visualLight);
-  if ( oldLux != lux ) {
-    // this wait(); is 2.0 and up RFM69 specific. Hope to get rid of it soon
-    wait(100);
-    send(msg_vis.set(visualLight), true);  // Send LIGHT BH1750     sensor readings
-    oldLux = lux;
-  }
 
    
   // Measure Relative Humidity from the Si7021
   humdty = sensor.getRH();
   dtostrf(humdty,0,2,humiditySi7021);  
   if (humdty != oldHumdty) {
-    wait(100);
     send(msg_hum.set(humiditySi7021), true); // Send humiditySi7021     sensor readings
+    // this wait(); is 2.0 and up RFM69 specific. Hope to get rid of it soon
+    // TSF:MSG:READ,0-0-209,s=4,c=1,t=0,pt=0,l=5,sg=0:22.00
+    // waiting up to xxx millis ACK of type 0 message t=0
+    wait(500, 1, 0);     
     oldHumdty = humdty; 
   }
 
@@ -228,18 +250,21 @@ void swarm_report()
   temp = sensor.getTemp();
   dtostrf(temp,0,2,tempSi7021);
   if (temp != oldTemp) {
-    wait(100);
     send(msg_temp.set(tempSi7021), true); // Send tempSi7021 temp sensor readings
+    // this wait(); is 2.0 and up RFM69 specific. Hope to get rid of it soon
+    // TSF:MSG:READ,0-0-209,s=3,c=1,t=1,pt=0,l=5,sg=0:34.00
+    // waiting up to xxx millis ACK of type 1 message t=1
+    wait(500, 1, 1);    
     oldTemp = temp;
-  }
+ }
 
-  battery_report();
 }
 
 
 void before() {
     //No need watch dog enabled in case of battery power.
     //wdt_enable(WDTO_4S);
+    analogReference(INTERNAL); //  DEFAULT
     wdt_disable();
   
     /*  RFM reset pin is 9
@@ -263,9 +288,12 @@ void before() {
     pinsIntEnable();
     pinMode(MAGNET_PIN, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(MAGNET_PIN), magnetSensorInterruptHandler, CHANGE);
+    LUXthreshold = loadState(DummyDimmerLUXvalue_sensor);
 }
 
-void setup() {
+void setup() {    
+  Serial.print("LUXthreshold: ");
+  Serial.println(LUXthreshold);
 }
 
 void presentation() 
@@ -279,6 +307,7 @@ void presentation()
   present(HUM_sensor, S_HUM);
   present(TEMP_sensor, S_TEMP);
   present(VIS_sensor, S_LIGHT_LEVEL);
+  present(DummyDimmerLUXvalue_sensor, S_DIMMER);
 }
 
 unsigned long wdiDelay  = 0;
@@ -288,43 +317,76 @@ int PIRValue = 0, MagSensorValue = 0;
 
 void loop()
 {
+  int sendStatus;
   //No need watch dog in case of battery power.
   //wdt_reset();
-
   if ( flagIntPIR && digitalRead(PIR_PIN) == HIGH )  {
-      PIRValue ?  PIRValue  = 0: PIRValue = 1;  // inverting the value each time
+      // report Light sensor reading before reporting PIR sensror
+      batteryReport();
+      lightReport(); 
       msg_PIR.setDestination(relayNodeIDPIRSensor); 
       // Blink  respective LED's once if message delivered to controller. 3 times if failed
-      send(msg_PIR.set(PIRValue),true) ? blinkGreenSensorLed(1) : blinkGreenSensorLed(3); 
+      if (lux <= LUXthreshold){
+        sendStatus =  send(msg_PIR.set(PIRValue),true);
+        if (sendStatus) {
+           PIRValue ?  PIRValue  = 0: PIRValue = 1;  // inverting the value each time
+           blinkSensorLed(1);
+        } else {
+           blinkSensorLed(3); 
+        }
+      }
+     
+     
       // wait for ACK signal up to RFM95_RETRY_TIMEOUT_MS or 50ms for rfm miliseconds
       #ifdef  MY_RADIO_RFM95
-        wait(RFM95_RETRY_TIMEOUT_MS, 1, 3);
+        wait(RFM95_RETRY_TIMEOUT_MS, 1, 2);
       #endif
       #ifdef  MY_RADIO_RFM69
-        wait(100, 1, 3);
+       // TSF:MSG:READ,0-0-209,s=1,c=1,t=2,pt=2,l=2,sg=0:1
+       // waiting up to xxx millis ACK of type 2 message t=2
+      wait(500, 1, 2);
       #endif
-      swarm_report();    
+      TempHumReport();
   }
 
   if ( flagIntMagnet )  {
+      // report Light sensor reading before reporting Magnet sensror
+      batteryReport();
+      lightReport(); 
       MagSensorValue ?  MagSensorValue  = 0: MagSensorValue = 1;  // inverting the value each time
       msg_mag.setDestination(relayNodeIDmagSensor); 
       // Blink  respective LED's once if message delivered to controller. 3 times if failed
-      send(msg_mag.set(MagSensorValue),true) ? blinkGreenSensorLed(1) : blinkGreenSensorLed(3);
-            // wait for ACK signal up to RFM95_RETRY_TIMEOUT_MS or 50ms for rfm miliseconds
+      send(msg_mag.set(MagSensorValue),true) ? blinkSensorLed(1) : blinkSensorLed(3);
+      // wait for ACK signal up to RFM95_RETRY_TIMEOUT_MS or 50ms for rfm miliseconds
+      // this wait(); is 2.0 and up RFM69 specific. Hope to get rid of it soon
       #ifdef  MY_RADIO_RFM95
-        wait(RFM95_RETRY_TIMEOUT_MS, 1, 3);
+       // TSF:MSG:READ,0-0-209,s=1,c=1,t=2,pt=2,l=2,sg=0:1
+       // waiting up to xxx millis ACK of type 2 message t=2
+        wait(RFM95_RETRY_TIMEOUT_MS, 1, 2);
       #endif
       #ifdef  MY_RADIO_RFM69
-        wait(100, 1, 3);
+       // TSF:MSG:READ,0-0-209,s=1,c=1,t=2,pt=2,l=2,sg=0:1
+       // waiting up to xxx millis ACK of type 2 message t=2
+       wait(500, 1, 2);
       #endif
-      swarm_report();  
+     TempHumReport();
   }
 
   
-  flagIntMagnet = false;
+  flagIntMagnet  = false;
   flagIntPIR = false;
 
-  sleep(0);
-  // sleep( 3 - 2, CHANGE,0);  // 300000 BUTTONS_INTERUPT_PIN
+  // wiat first 30 seconds after boot for adjusting LUX threshhold
+  if (millis() > 30000)  sleep(0);
+}
+
+
+void receive(const MyMessage &message) {
+    if (message.type == V_PERCENTAGE && message.sensor == DummyDimmerLUXvalue_sensor) {
+      LUXthreshold = message.getUInt();
+      saveState(DummyDimmerLUXvalue_sensor,LUXthreshold);
+      blinkSensorLed(2);
+      Serial.print("LUXthreshold: ");
+      Serial.println(LUXthreshold);
+    }
 }
