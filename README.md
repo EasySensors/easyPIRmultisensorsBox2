@@ -8,7 +8,7 @@
 
 Best sutable for Home Automation, IOT.  You may think of it as Arduino Pro Mini plus all the items in the picture below:
 
-![Arduino PIR](https://github.com/EasySensors/easyPIRmultisensorsBox2/blob/master/pics/replcePIR2.jpg?raw=true)
+![Arduino PIR](https://github.com/EasySensors/easyPIRmultisensorsBox2/blob/master/pics/replcePIR3.jpg?raw=true)
 
 ## Specification: ##
 
@@ -19,7 +19,7 @@ Best sutable for Home Automation, IOT.  You may think of it as Arduino Pro Mini 
  - Booster converter alows to work from batteries drained as low as 0.7V combined
  - Wide operating temperature range. Tested -20 +40 Celsius
  - PIR sensor Am312 
- - Temperature and humidity sensor Si7021 
+ - Temperature and humidity sensor SHTC3 
  - High Accuracy Temperature Sensor ±0.4 °C (max), –10 to 85 °C
  - Precision Relative Humidity Sensor ± 3% RH (max), 0–80% RH
  - Light sensor BH1750,  spectral responsibility is approximately human eye response.
