@@ -37,7 +37,6 @@ Best sutable for Home Automation, IOT.  You may think of it as Arduino Pro Mini 
 Arduino Pins|	Description
 ------------|--------------
 A0, A1 |	Available ARDUINO analog GPIO / DIGITAL GPIO as PCB pads close to radio module
-A6 |	Connected to Battery voltage sensor (via divider) 3M/470k 
 A4 |	Connected to sensors i2c
 A5 |	Connected to sensors i2c
 A6 |	Battery sensing voltage divider 1M/470k
