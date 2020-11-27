@@ -1,6 +1,6 @@
 ![Arduino PIR](https://github.com/EasySensors/easyPIRmultisensorsBox2/blob/master/pics/Easy_PIR_MAIN.jpg?raw=true)
 ![Arduino PIR](https://github.com/EasySensors/easyPIRmultisensorsBox2/blob/master/pics/Easy_PIR_PCB_TOP.jpg?raw=true)
-![Arduino PIR](https://github.com/EasySensors/easyPIRmultisensorsBox2/blob/master/pics/Easy_PIR_BOTTOM.jpg?raw=true)
+![Arduino PIR](https://github.com/EasySensors/easyPIRmultisensorsBox2/blob/master/pics/Easy_PIR_BOTTOMnew.jpg?raw=true)
 
 
 **The easyPIRmultisensorsBox is a low cost wireless Arduino IDE compatible (the Atmel ATMega328P 8MHz) microcontroller with  RFM 69 CW or RFM 69 HCW or RFM 95 LoRa  radios on board and few other nice additions.** 
@@ -64,6 +64,12 @@ D13 |	Connected to  SCK
 **programming FTDI adapter connection**
 
 ![enter image description here](https://github.com/EasySensors/ButtonSizeNode/blob/master/pics/FTDIvcc5-3.jpg?raw=true)
+
+
+**Old and new versions**
+
+![enter image description here](https://github.com/EasySensors/ButtonSizeNode/blob/master/pics/NewOldPIR.jpg?raw=true)
+
 
 
 How to use it as home automation (IOT) node controller
