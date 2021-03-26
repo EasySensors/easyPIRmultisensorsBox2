@@ -1,4 +1,4 @@
-![Arduino PIR](https://github.com/EasySensors/easyPIRmultisensorsBox2/blob/master/pics/Easy_PIR_MAIN.jpg?raw=true)
+![Arduino PIR](https://github.com/EasySensors/easyPIRmultisensorsBox2/blob/master/pics/Easy_PIR_MAIN_new.png?raw=true)
 ![Arduino PIR](https://github.com/EasySensors/easyPIRmultisensorsBox2/blob/master/pics/Easy_PIR_PCB_TOP.jpg?raw=true)
 ![Arduino PIR](https://github.com/EasySensors/easyPIRmultisensorsBox2/blob/master/pics/Easy_PIR_BOTTOMnew.png?raw=true)
 
