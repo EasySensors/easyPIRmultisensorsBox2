@@ -27,8 +27,15 @@
 #endif
 
 
+
+// ------------------------------------------ The node settings start
+
+// Define it if only the magnet sensor used and no PIR sensor installed
+//#define NO_PIR_SENSOR_INSTALLED
+
+
 // Comment it out for Auto Node ID #
-#define MY_NODE_ID 0x72 //db gates D4 0xf0 
+#define MY_NODE_ID 0x71  //db gates D4 0xf0 
 
 int relayNodeIDPIRSensor  = 0x0; // Relay addressess to send switch ON\OFF states. Can be any address; 0 is SmartHome controller address.
 int relayNodeIDmagSensor  = 0x0; // Relay addressess to send switch ON\OFF states. Can be any address; 0 is SmartHome controller address.
@@ -37,10 +44,23 @@ int relayNodeIDmagSensor  = 0x0; // Relay addressess to send switch ON\OFF state
 #define TEMP_HUM_SENSOR_SHTC3
 //#define TEMP_HUM_SENSOR_Si7021
 
+#if defined (TEMP_HUM_SENSOR_SHTC3) &&  defined (TEMP_HUM_SENSOR_Si7021)
+#error Only one temperature and humidity sensor type can be activated
+#endif
+
+
 //  Lux light level threshold. if Lux level redings below  or equal LUXTHRESHOLD PIR_sensor will be reported to controller if motion detected
 //  If Lux level redings above LUXTHRESHOLD PIR_aboveLUXthreshold_sensor will be reported to controller if motion detected
 //  PIR_aboveLUXthreshold_sensor is useful when lights set to ON but you still need motion detection.
-#define LUXTHRESHOLD 0
+
+#define LUXTHRESHOLD 0 // 0xFFFF
+
+//  it only sends Humidity report when there has been some changes in humidity. If changes exceeds set % value the node will report it.
+#define HUMIDITY_HYSTERESIS_PERCENTS 10
+
+
+// Define miliseconds interval between desired sensors report. Set 0 to report each PIR door sensor triggered wakeup. 
+#define SENSORS_REPORT_TIME_MS 120000
 
 
 // Assign numbers for all sensors to be reported to the gateway\controller (they will be created as child devices)
@@ -50,8 +70,7 @@ int relayNodeIDmagSensor  = 0x0; // Relay addressess to send switch ON\OFF state
 #define MAG_sensor 2  
 #define HUM_sensor 3 //3 If sensor # is 0 the sensor will not report any values to the controller
 #define TEMP_sensor 4 //4 If sensor # is 0 the sensor will not report any values to the controller
-#define VIS_sensor 0 //5 If sensor # is 0 the sensor will not report any values to the controller
-#define DummyDimmerLUXvalue_sensor 0 //6 If sensor # is 0 the sensor will not report any values to the controller
+#define VIS_sensor 5 //5 If sensor # is 0 the sensor will not report any values to the controller
 
 
 //#define MY_RFM69_NETWORKID 111
@@ -63,7 +82,7 @@ int relayNodeIDmagSensor  = 0x0; // Relay addressess to send switch ON\OFF state
 
 // if you use MySensors 2.0 use this style 
 //#define MY_RFM69_FREQUENCY   RFM69_433MHZ
-//#define MY_RFM69_FREQUENCY   RFM69_868MHZ // deafult
+//#define MY_RFM69_FREQUENCY   RFM69_868MHZ
 //#define MY_RFM69_FREQUENCY   RFM69_915MHZ
 
 
@@ -85,7 +104,7 @@ int relayNodeIDmagSensor  = 0x0; // Relay addressess to send switch ON\OFF state
 #define RFM95_RETRY_TIMEOUT_MS      (2500ul)      //!< Timeout for ACK, adjustments needed if modem configuration changed (air time different)
 
 //#define   MY_RFM95_FREQUENCY RFM95_915MHZ
-#define   MY_RFM95_FREQUENCY RFM95_868MHZ
+//#define   MY_RFM95_FREQUENCY RFM95_868MHZ
 //#define   MY_RFM95_FREQUENCY RFM95_433MHZ
 
 
@@ -95,13 +114,14 @@ int relayNodeIDmagSensor  = 0x0; // Relay addressess to send switch ON\OFF state
 #define MY_PARENT_NODE_ID  0x0// 0x48 db
 
 
-//Enable OTA feature
-//#define MY_OTA_FIRMWARE_FEATURE
-//#define MY_OTA_FLASH_JDECID 0x0//0x2020
+
 
 //Enable Crypto Authentication to secure the node
 //#define MY_SIGNING_ATSHA204
 //#define  MY_SIGNING_REQUEST_SIGNATURES
+
+
+// ------------------------------------------ The node settings end
 
 
 // Written by Christopher Laws, March, 2013.
@@ -148,18 +168,18 @@ MyMessage msg_mag(MAG_sensor, V_LIGHT);
 MyMessage msg_hum(HUM_sensor, V_HUM);
 MyMessage msg_temp(TEMP_sensor, V_TEMP);
 MyMessage msg_vis(VIS_sensor, V_LEVEL); //V_LIGHT_LEVEL
-MyMessage msg_LUXvalue_sensor(DummyDimmerLUXvalue_sensor, V_PERCENTAGE); 
 
 
 int BATTERY_SENSE_PIN = A6;  // select the input pin for the battery sense point
 
-int32_t oldLux = 0, lux;
-int16_t oldhumidty = 0, humidty;
+uint16_t oldLux = 0, lux;
+int16_t oldhumidity = 1, humidity;
 int16_t oldTemp = 0, temp;
 uint8_t batteryPcnt, oldBatteryPcnt = 0; 
 
 
 volatile bool flagIntPIR = false, flagIntMagnet = false;
+uint8_t prevoiusMagnetPinValue = 0;
 
 //#define G_VALUE 16380
 //#define G_VALUE2 268304400 //G_VALUE * G_VALUE
@@ -170,7 +190,7 @@ void pinsIntEnable(){
   
   PCMSK2 |= bit (PCINT23);
   PCIFR  |= bit (PCIF2);   // clear any outstanding interrupts
-  PCICR  |= bit (PCIE2);   // enable pin change interrupts for A0 to A1
+  PCICR  |= bit (PCIE2);   // Pcint 23 d7 D0-D7 = PCINT 16-23 = PCIR2 = PD = PCIE2 = pcmsk2
 }
 
 ISR (PCINT2_vect){
@@ -186,7 +206,7 @@ void blinkSensorLed(int  i){
 }
 
 void blinkGreenSensorLed(int  i){
-  //return;
+  return;
   for (;i>0;i--){
     digitalWrite(GREEN_LED_PIN, HIGH);
     wait(50);
@@ -206,7 +226,7 @@ void blinkRedSensorLed(int  i){
 
 
 
-void batteryLevelRead(){
+int  batteryLevelRead(){
 
   // Get the battery Voltage
   int sensorValue = analogRead(BATTERY_SENSE_PIN);
@@ -216,11 +236,22 @@ void batteryLevelRead(){
    *  2 v for batteries in series is close to dead bateries. analog Read value for 2 V is  595.  100% = 960 or more 
    *  something in between is working range.
    */
-  batteryPcnt = (sensorValue - 595)  / 3.64;
+  float batteryPcntValue = (sensorValue - 595)  / 3.64;
+
+  #ifdef MY_DEBUG
+    Serial.print("battery sensorValue   : ");  Serial.println(sensorValue);
+  #endif
   
-  batteryPcnt = batteryPcnt > 0 ? batteryPcnt:0; // Cut down negative values. Just in case the battery goes below 4V and the node still working. 
-  batteryPcnt = batteryPcnt < 100 ? batteryPcnt:100; // Cut down more than "100%" values. In case of ADC fluctuations. 
-  //Serial.print("sensorValue  ");   Serial.println(sensorValue);  
+  if (batteryPcntValue < 0 ) {
+    // Cut down negative values. Just in case the battery goes below 4V and the node still working. 
+    batteryPcnt = 0; }
+  else if (batteryPcntValue > 100){
+     // Cut down more than "100%" values. In case of ADC fluctuations. 
+     batteryPcnt = 100; }
+  else  batteryPcnt = (int)batteryPcntValue;   
+
+  // check if BATTERY_SENSE_PIN readings close to 0 (external power source). 
+  return  batteryPcntValue < 100 ? 100 : (int) batteryPcntValue;  
 }
 
 
@@ -258,93 +289,148 @@ void lightReport()
   // Sensor # is 0, no need to report anything
   if (0 != VIS_sensor) { //  If sensor # is 0 the sensor will not report any values to the controller 
     send(msg_vis.set(visualLight), true);  // Send LIGHT BH1750     sensor readings
-    // this wait(); is 2.0 and up RFM69 specific. Hope to get rid of it soon
-    // TSF:MSG:SEND,209-209-0-0,s=5,c=1,t=37,pt=0,l=5,sg=0,ft=0,st=OK: 
-    // waiting up to xxx millis ACK of type 37 message t=37
-    wait(500, 1, 37);       
+    #ifdef  MY_RADIO_RFM95
+      // TSF:MSG:SEND,209-209-0-0,s=5,c=1,t=37,pt=0,l=5,sg=0,ft=0,st=OK: 
+      // waiting up to xxx millis ACK of type 37 message t=37
+      wait(RFM95_RETRY_TIMEOUT_MS, 1, 37);
+    #endif
+    #ifdef  MY_RADIO_RFM69
+      wait(500, 1, 37);
+    #endif 
+
+           
     oldLux = lux;
   }
 }
 
 void TempHumReport()
 {
-  #ifdef  TEMP_HUM_SENSOR_SHTC3
-   
-    char humiditySHTC3[10];
-    char tempSHTC3[10];
+    char humidityStr[10];
+    char tempStr[10];
 
-    SHTC3_Status_TypeDef result = SHTC3.update(); 
+  #ifdef  TEMP_HUM_SENSOR_Si7021
     // Measure Relative Humidity from the Si7021
-    humidty = SHTC3.toPercent();
-    dtostrf(humidty,0,2,humiditySHTC3);  
-    
-    if (humidty != oldhumidty && 0 != HUM_sensor) {  //  If sensor # is 0 the sensor will not report any values to the controller 
-      send(msg_hum.set(humiditySHTC3), true); // Send humiditySHTC3     sensor readings
-      // this wait(); is 2.0 and up RFM69 specific. Hope to get rid of it soon
-      // TSF:MSG:READ,0-0-209,s=4,c=1,t=0,pt=0,l=5,sg=0:22.00
-      // waiting up to xxx millis ACK of type 0 message t=0
-      wait(500, 1, 0);     
-      oldhumidty = humidty; 
-    }
-  
-    // Measure Temperature from the Si7021
     // Temperature is measured every time RH is requested.
     // It is faster, therefore, to read it from previous RH
     // measurement with getTemp() instead with readTemp()
+    humidity = sensor.getRH();
+    temp = sensor.getTemp();
+  #endif    
+  
+  #ifdef  TEMP_HUM_SENSOR_SHTC3
+    SHTC3_Status_TypeDef result = SHTC3.update(); 
+    // Measure Relative Humidity from the SHTC3 
+    humidity = SHTC3.toPercent();
     temp = SHTC3.toDegC();
-    dtostrf(temp,0,2,tempSHTC3);
+   #endif
+   
+    dtostrf(humidity,0,2,humidityStr);
+    dtostrf(temp,0,2,tempStr);  
+   
+    float oldhumidityPercValue =  (float)oldhumidity/100;
+    float humidityDeltaPercents =   abs( (humidity - oldhumidity)/oldhumidityPercValue );
+    #ifdef MY_DEBUG
+          Serial.print("humidity  ");   Serial.println(humidity);
+          Serial.print("oldhumidity  ");   Serial.println(oldhumidity);
+          Serial.print("humidityDeltaPercents  ");   Serial.println(humidityDeltaPercents);
+    #endif 
+    
+    if ( humidityDeltaPercents > HUMIDITY_HYSTERESIS_PERCENTS  && 0 != HUM_sensor) {  //  If sensor # is 0 the sensor will not report any values to the controller 
+      send(msg_hum.set(humidityStr), true); // Send humiditySHTC3     sensor readings
+      // this wait(); is 2.0 and up RFM69 specific. Hope to get rid of it soon
+      // TSF:MSG:READ,0-0-209,s=4,c=1,t=0,pt=0,l=5,sg=0:22.00
+      // waiting up to xxx millis ACK of type 0 message t=0
+      #ifdef  MY_RADIO_RFM95
+        wait(RFM95_RETRY_TIMEOUT_MS, 1, 0);
+      #endif
+      #ifdef  MY_RADIO_RFM69
+       // waiting up to xxx millis ACK of type 2 message t=2
+        wait(500, 1, 0);
+      #endif
+      oldhumidity = humidity; 
+    }
+  
+
+
     if (temp != oldTemp && 0 != TEMP_sensor) { //  If sensor # is 0 the sensor will not report any values to the controller 
-      send(msg_temp.set(tempSHTC3), true); // Send tempSi7021 temp sensor readings
+      send(msg_temp.set(tempStr), true); // Send tempSi7021 temp sensor readings
       // this wait(); is 2.0 and up RFM69 specific. Hope to get rid of it soon
       // TSF:MSG:READ,0-0-209,s=3,c=1,t=1,pt=0,l=5,sg=0:34.00
       // waiting up to xxx millis ACK of type 1 message t=1
-      wait(500, 1, 1);    
+      #ifdef  MY_RADIO_RFM95
+        wait(RFM95_RETRY_TIMEOUT_MS, 1, 0);
+      #endif
+      #ifdef  MY_RADIO_RFM69
+       // waiting up to xxx millis ACK of type 2 message t=2
+        wait(500, 1, 0);
+      #endif 
       oldTemp = temp;
    }
  
-  #endif
-
-  #ifdef  TEMP_HUM_SENSOR_Si7021
-    char humiditySi7021[10];
-    char tempSi7021[10];
-     
-    // Measure Relative Humidity from the Si7021
-    humidty = sensor.getRH();
-    dtostrf(humidty,0,2,humiditySi7021);  
-    
-    if (humidty != oldhumidty && 0 != HUM_sensor) { //  If sensor # is 0 the sensor will not report any values to the controller 
-      send(msg_hum.set(humiditySi7021), true); // Send humiditySi7021     sensor readings
-      // this wait(); is 2.0 and up RFM69 specific. Hope to get rid of it soon
-      // TSF:MSG:READ,0-0-209,s=4,c=1,t=0,pt=0,l=5,sg=0:22.00
-      // waiting up to xxx millis ACK of type 0 message t=0
-      wait(500, 1, 0);     
-      oldhumidty = humidty; 
-    }
-  
-    // Measure Temperature from the Si7021
-    // Temperature is measured every time RH is requested.
-    // It is faster, therefore, to read it from previous RH
-    // measurement with getTemp() instead with readTemp()
-    temp = sensor.getTemp();
-    dtostrf(temp,0,2,tempSi7021);
-    if (temp != oldTemp && 0 != TEMP_sensor) { //  If sensor # is 0 the sensor will not report any values to the controller 
-      send(msg_temp.set(tempSi7021), true); // Send tempSi7021 temp sensor readings
-      // this wait(); is 2.0 and up RFM69 specific. Hope to get rid of it soon
-      // TSF:MSG:READ,0-0-209,s=3,c=1,t=1,pt=0,l=5,sg=0:34.00
-      // waiting up to xxx millis ACK of type 1 message t=1
-      wait(500, 1, 1);    
-      oldTemp = temp;
-   }
- #endif
 }
 
 
 void before() {
     //No need watch dog enabled in case of battery power.
     //wdt_enable(WDTO_4S);
-    
-    analogReference(INTERNAL); //  DEFAULT
     wdt_disable();
+
+    #ifdef  TEMP_HUM_SENSOR_SHTC3
+      errorDecoder(SHTC3.begin());  // SHTC3 start
+    #endif
+
+    Serial.println();  
+    #ifndef NO_PIR_SENSOR_INSTALLED
+      pinMode(PIR_PIN, INPUT_PULLUP);
+      Serial.print("The node is configured as PIR sensor node. If no onboard PIR sensor soldered, please comment out: #define NO_PIR_SENSOR_INSTALLED ");  Serial.println(HUMIDITY_HYSTERESIS_PERCENTS); 
+    #endif
+    
+    #ifdef MY_RADIO_RFM69
+      Serial.println(F("The node is RFM69 configured."));
+      Serial.print(F("MY_RFM69_NETWORKID: "));  Serial.println(MY_RFM69_NETWORKID);
+      Serial.print(F("MY_RFM69_FREQUENCY: ")); 
+      if (MY_RFM69_FREQUENCY == RFM69_433MHZ)   Serial.println(F("RFM69_433MHZ"));
+      else if (MY_RFM69_FREQUENCY == RFM69_915MHZ)  Serial.println(F("RFM69_915MHZ"));
+      else Serial.println(F("RFM69_868MHZ"));
+          
+      Serial.print(F("MY_RFM69_TX_POWER_DBM "));  Serial.println(MY_RFM69_TX_POWER_DBM);
+      #ifdef MY_IS_RFM69HW
+        Serial.println(F("RFM69HCW selected."));
+      #endif
+      
+    #endif    
+
+    #ifdef MY_RADIO_RFM95
+      Serial.println(F("The node is RFM65 configured."));
+      Serial.print(F("MY_RFM95_FREQUENCY: "));  Serial.println(MY_RFM95_FREQUENCY);
+      Serial.print(F("RFM95_RETRY_TIMEOUT_MS: "));  Serial.println(RFM95_RETRY_TIMEOUT_MS);  
+      Serial.print(F("MY_RFM95_TX_POWER_DBM "));  Serial.println(MY_RFM95_TX_POWER_DBM);
+      Serial.print(F("MY_RFM95_MODEM_CONFIGRUATION "));  Serial.println(MY_RFM95_MODEM_CONFIGRUATION);
+    #endif
+    
+
+    Serial.print(F("MY_NODE_ID Hex: "));  Serial.println(MY_NODE_ID,HEX);
+    Serial.print(F("The node will send PIR sensor statuses to address Hex: "));  Serial.println(relayNodeIDPIRSensor,HEX);
+    Serial.print(F("The node will send Magnet  sensor statuses to address Hex: "));  Serial.println(relayNodeIDmagSensor,HEX);
+
+    Serial.print(F("LUXthreshold: "));  Serial.println(LUXthreshold); 
+    Serial.print(F("PIR_sensor #: "));  Serial.println(PIR_sensor);
+    Serial.print(F("PIR_aboveLUXthreshold_sensor #: "));  Serial.println(PIR_aboveLUXthreshold_sensor);
+    Serial.print(F("MAG_sensor #: "));  Serial.println(MAG_sensor); 
+    Serial.print(F("HUM_sensor #: "));  Serial.println(HUM_sensor); 
+    Serial.print(F("TEMP_sensor #: "));  Serial.println(TEMP_sensor); 
+    Serial.print(F("VIS_sensor #: "));  Serial.println(VIS_sensor); 
+    Serial.print(F("Node Wakep up interval miliseconds: "));  Serial.println(SENSORS_REPORT_TIME_MS); ;
+    Serial.print(F("Humidity report histeresys %: "));  Serial.println(HUMIDITY_HYSTERESIS_PERCENTS); 
+    Serial.println();  
+    
+    
+    analogReference(INTERNAL); //     DEFAULT
+
+    
+    //reading unused pin - init ADC 
+    analogRead(A7);
+
   
     /*  RFM reset pin is 9
      *  A manual reset of the RFM69HCW\CW is possible even for applications in which VDD cannot be physically disconnected.
@@ -359,39 +445,44 @@ void before() {
     // set Pin 9 to high impedance
     pinMode(9, INPUT);
     delay(10);
+
+    #ifdef NO_PIR_SENSOR_INSTALLED
+          digitalWrite(7,INPUT_PULLUP);
+    #endif
   
     pinMode(RED_LED_PIN, OUTPUT);
     digitalWrite(RED_LED_PIN,0);
     pinMode(GREEN_LED_PIN, OUTPUT);
     digitalWrite(GREEN_LED_PIN,0);
 
+    if (batteryLevelRead() < 1)  {
+     // The battery level is critical. To avoid rebooting and flooding radio with presentation messages
+     // turn the device into hwSleep mode.
+  
+     #ifdef MY_DEBUG
+        Serial.println("Voltage is way below 2 Volts. Halting boot"); 
+     #endif
+     
+     blinkSensorLed(10);
+     hwSleep2(0, &flagIntPIR, &flagIntMagnet); 
+    }
+   
+
     lightMeter.begin(BH1750::ONE_TIME_LOW_RES_MODE);
     lightMeter.readLightLevel();// Get Lux value
-    
-    //pinMode(MAGNET_PIN, INPUT_PULLUP);    
-    //pinMode(PIR_PIN, INPUT_PULLUP);
     
     pinsIntEnable();     
     attachInterrupt(digitalPinToInterrupt(MAGNET_PIN), magnetSensorInterruptHandler, CHANGE);
 
     LUXthreshold = LUXTHRESHOLD;
     blinkGreenSensorLed(2);
+
+    
     
 }
 
 void setup() {
-  #ifdef  TEMP_HUM_SENSOR_SHTC3
-    errorDecoder(SHTC3.begin());  // SHTC3 start
-  #endif
-  Serial.println();    
-  Serial.print("LUXthreshold: ");  Serial.println(LUXthreshold);  Serial.println();
-  Serial.print("PIR_sensor #: ");  Serial.println(PIR_sensor); Serial.println();
-  Serial.print("PIR_aboveLUXthreshold_sensor #: ");  Serial.println(PIR_aboveLUXthreshold_sensor); Serial.println();
-  Serial.print("MAG_sensor #: ");  Serial.println(MAG_sensor); Serial.println();
-  Serial.print("HUM_sensor #: ");  Serial.println(HUM_sensor); Serial.println();
-  Serial.print("TEMP_sensor #: ");  Serial.println(TEMP_sensor); Serial.println();
-  Serial.print("VIS_sensor #: ");  Serial.println(VIS_sensor); Serial.println();
-  Serial.print("DummyDimmerLUXvalue_sensor #: ");  Serial.println(DummyDimmerLUXvalue_sensor); Serial.println();
+
 }
 
 void presentation() 
@@ -406,7 +497,6 @@ void presentation()
   if (0 != HUM_sensor) present(HUM_sensor, S_HUM);
   if (0 != TEMP_sensor) present(TEMP_sensor, S_TEMP);
   if (0 != VIS_sensor) present(VIS_sensor, S_LIGHT_LEVEL);
-  if (0 != DummyDimmerLUXvalue_sensor) present(DummyDimmerLUXvalue_sensor, S_DIMMER);
 }
 
 int PIRValue = 0, PIR_aboveLUXthresholdValue = 0, MagSensorValue = 0;
@@ -414,6 +504,7 @@ int PIRValue = 0, PIR_aboveLUXthresholdValue = 0, MagSensorValue = 0;
 void loop()
 {
   int sendStatus;
+  uint8_t magnetPinValue = digitalRead(MAGNET_PIN);
 
   batteryLevelRead();
   if ( flagIntPIR && digitalRead(PIR_PIN) == HIGH )  {
@@ -444,9 +535,11 @@ void loop()
       } else {
          blinkSensorLed(3); 
       }
-  }
+  } else if (flagIntPIR) {flagIntPIR = false;}
 
-  if ( flagIntMagnet )  {
+  
+  if ( flagIntMagnet && magnetPinValue != prevoiusMagnetPinValue )  {
+      prevoiusMagnetPinValue = magnetPinValue;
       flagIntMagnet  = false;
       //MagSensorValue ?  MagSensorValue  = 0: MagSensorValue = 1;  // inverting the value each time
       MagSensorValue = digitalRead(MAGNET_PIN);
@@ -467,17 +560,71 @@ void loop()
       #endif
   }
 
-
-  //lightReport(); 
+  // Report all sensors
+  lightReport(); 
   TempHumReport();
   batteryReport();
   
-
-  if ( !flagIntMagnet && (!flagIntPIR || (flagIntPIR && digitalRead(PIR_PIN) == LOW)) ){ // make sure no changes in PIR and magnet sensor happened while we were sending reports. 
-      sleep(0); // currently only 0 value can be set 
+/*
+  Serial.print("flagIntMagnet: ");
+  Serial.print(flagIntMagnet);
+  Serial.print(" flagIntPIR: ");
+  Serial.print(flagIntPIR);
+  Serial.print(" digitalRead(PIR_PIN): ");
+  Serial.println(digitalRead(PIR_PIN));
+*/
+  if ( !flagIntMagnet && (!flagIntPIR || (flagIntPIR && digitalRead(PIR_PIN) == LOW )) ){ // make sure no changes in PIR and magnet sensor happened while we were sending reports. 
+      // hwSleep2 is rework of MySensors native sleep function to be able to sleep for some time and  wakeup on interrups CHANGE 
+      // Doesnot support smart sleep, FOTA nor TransportReady. just sleeps miliseconds provided with first parameter. 
+      hwSleep2(SENSORS_REPORT_TIME_MS, &flagIntPIR, &flagIntMagnet); 
   }
 }
 
+
+
+uint32_t hwInternalSleep2(uint32_t ms, volatile bool *flag1, volatile bool *flag2  )
+{
+  // Sleeping with watchdog only supports multiples of 16ms.
+  // Round up to next multiple of 16ms, to assure we sleep at least the
+  // requested amount of time. Sleep of 0ms will not sleep at all!
+  ms += 15u;
+
+
+  while (!*flag1 && !*flag2 && ms >= 16) {
+    for (uint8_t period = 9u; ; --period) {
+      const uint16_t comparatorMS = 1 << (period + 4);
+      if ( ms >= comparatorMS) {
+        hwPowerDown(period); // 8192ms => 9, 16ms => 0
+        ms -= comparatorMS;
+        break;
+      }
+    }
+  }
+
+  
+  if ( *flag1 or *flag2 ) {
+    return ms;
+  }
+  return 0ul;
+}
+
+int8_t hwSleep2(uint32_t ms, volatile bool* flag1, volatile bool* flag2)
+{
+  transportDisable();
+  // Return what woke the mcu.
+  // Default: no interrupt triggered, timer wake up
+  int8_t ret = MY_WAKE_UP_BY_TIMER;
+  sleepRemainingMs = 0ul;
+  if (ms > 0u) {
+    // sleep for defined time
+    sleepRemainingMs = hwInternalSleep2(ms, flag1, flag2);
+  } else {
+    // sleep until ext interrupt triggered
+    hwPowerDown(WDTO_SLEEP_FOREVER);
+  }
+  transportReInitialise();
+  return 0;
+}
 
 
 
