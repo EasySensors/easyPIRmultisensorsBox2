@@ -41,8 +41,8 @@ int relayNodeIDPIRSensor  = 0x0; // Relay addressess to send switch ON\OFF state
 int relayNodeIDmagSensor  = 0x0; // Relay addressess to send switch ON\OFF states. Can be any address; 0 is SmartHome controller address.
 
 // Uncomment either one. dpending on the Temperature and Humidity sensor installed on the board:
-//#define TEMP_HUM_SENSOR_SHTC3
-#define TEMP_HUM_SENSOR_Si7021
+#define TEMP_HUM_SENSOR_SHTC3
+//#define TEMP_HUM_SENSOR_Si7021
 
 #if defined (TEMP_HUM_SENSOR_SHTC3) &&  defined (TEMP_HUM_SENSOR_Si7021)
 #error Only one temperature and humidity sensor type can be activated
