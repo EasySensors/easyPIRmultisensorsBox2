@@ -35,14 +35,14 @@
 
 
 // Comment it out for Auto Node ID #
-#define MY_NODE_ID 0x71  //db gates D4 0xf0 
+#define MY_NODE_ID 220 // 
 
 int relayNodeIDPIRSensor  = 0x0; // Relay addressess to send switch ON\OFF states. Can be any address; 0 is SmartHome controller address.
 int relayNodeIDmagSensor  = 0x0; // Relay addressess to send switch ON\OFF states. Can be any address; 0 is SmartHome controller address.
 
 // Uncomment either one. dpending on the Temperature and Humidity sensor installed on the board:
-#define TEMP_HUM_SENSOR_SHTC3
-//#define TEMP_HUM_SENSOR_Si7021
+//#define TEMP_HUM_SENSOR_SHTC3
+#define TEMP_HUM_SENSOR_Si7021
 
 #if defined (TEMP_HUM_SENSOR_SHTC3) &&  defined (TEMP_HUM_SENSOR_Si7021)
 #error Only one temperature and humidity sensor type can be activated
@@ -53,14 +53,14 @@ int relayNodeIDmagSensor  = 0x0; // Relay addressess to send switch ON\OFF state
 //  If Lux level redings above LUXTHRESHOLD PIR_aboveLUXthreshold_sensor will be reported to controller if motion detected
 //  PIR_aboveLUXthreshold_sensor is useful when lights set to ON but you still need motion detection.
 
-#define LUXTHRESHOLD 0 // 0xFFFF
+#define LUXTHRESHOLD 0xFFFF //  0xFFFF = always report PIR triggered sensor
 
 //  it only sends Humidity report when there has been some changes in humidity. If changes exceeds set % value the node will report it.
 #define HUMIDITY_HYSTERESIS_PERCENTS 10
 
 
 // Define miliseconds interval between desired sensors report. Set 0 to report each PIR door sensor triggered wakeup. 
-#define SENSORS_REPORT_TIME_MS 120000
+#define SENSORS_REPORT_TIME_MS 120000 //  0 sleep forever 1hr = 3600000 5hrs = 18000000
 
 
 // Assign numbers for all sensors to be reported to the gateway\controller (they will be created as child devices)
@@ -70,7 +70,7 @@ int relayNodeIDmagSensor  = 0x0; // Relay addressess to send switch ON\OFF state
 #define MAG_sensor 2  
 #define HUM_sensor 3 //3 If sensor # is 0 the sensor will not report any values to the controller
 #define TEMP_sensor 4 //4 If sensor # is 0 the sensor will not report any values to the controller
-#define VIS_sensor 5 //5 If sensor # is 0 the sensor will not report any values to the controller
+#define VIS_sensor 5//5 If sensor # is 0 the sensor will not report any values to the controller
 
 
 //#define MY_RFM69_NETWORKID 111
@@ -111,7 +111,7 @@ int relayNodeIDmagSensor  = 0x0; // Relay addressess to send switch ON\OFF state
 // Avoid battery drain if Gateway disconnected and the node sends more than MY_TRANSPORT_STATE_RETRIES times message.
 #define MY_TRANSPORT_UPLINK_CHECK_DISABLED
 #define MY_PARENT_NODE_IS_STATIC
-#define MY_PARENT_NODE_ID  0x0// 0x48 db
+#define MY_PARENT_NODE_ID  0x0
 
 
 
@@ -206,7 +206,7 @@ void blinkSensorLed(int  i){
 }
 
 void blinkGreenSensorLed(int  i){
-  return;
+  //return;
   for (;i>0;i--){
     digitalWrite(GREEN_LED_PIN, HIGH);
     wait(50);
@@ -227,6 +227,7 @@ void blinkRedSensorLed(int  i){
 
 
 int  batteryLevelRead(){
+  
 
   // Get the battery Voltage
   int sensorValue = analogRead(BATTERY_SENSE_PIN);
@@ -276,6 +277,7 @@ void batteryReport(){
 
 void lightReport()
 {
+
   char visualLight[10];
  
   lightMeter.begin(BH1750::ONE_TIME_LOW_RES_MODE); // need for correct wake up
@@ -377,12 +379,17 @@ void before() {
 
     #ifdef  TEMP_HUM_SENSOR_SHTC3
       errorDecoder(SHTC3.begin());  // SHTC3 start
+      SHTC3.sleep(true);
     #endif
 
     Serial.println();  
-    #ifndef NO_PIR_SENSOR_INSTALLED
+    
+    #ifdef NO_PIR_SENSOR_INSTALLED
+      Serial.println("The node is configured as Door sensor node. If there is PIR sensor soldered, please comment out line #define NO_PIR_SENSOR_INSTALLED ");  
       pinMode(PIR_PIN, INPUT_PULLUP);
-      Serial.print("The node is configured as PIR sensor node. If no onboard PIR sensor soldered, please comment out: #define NO_PIR_SENSOR_INSTALLED ");  Serial.println(HUMIDITY_HYSTERESIS_PERCENTS); 
+      digitalWrite(PIR_PIN,HIGH);
+    #else if
+      Serial.println("The node is configured as PIR sensor node. If there is no PIR sensor soldered, please define #define NO_PIR_SENSOR_INSTALLED ");  
     #endif
     
     #ifdef MY_RADIO_RFM69
@@ -420,7 +427,7 @@ void before() {
     Serial.print(F("HUM_sensor #: "));  Serial.println(HUM_sensor); 
     Serial.print(F("TEMP_sensor #: "));  Serial.println(TEMP_sensor); 
     Serial.print(F("VIS_sensor #: "));  Serial.println(VIS_sensor); 
-    Serial.print(F("Node Wakep up interval miliseconds: "));  Serial.println(SENSORS_REPORT_TIME_MS); ;
+    Serial.print(F("Node sensor's report interval miliseconds: "));  Serial.println(SENSORS_REPORT_TIME_MS); ;
     Serial.print(F("Humidity report histeresys %: "));  Serial.println(HUMIDITY_HYSTERESIS_PERCENTS); 
     Serial.println();  
     
@@ -437,6 +444,9 @@ void before() {
      *  Pin RESET should be pulled high for a hundred microseconds, and then released. The user should then wait for 5 ms
      *  before using the module.
      */
+
+    pinMode(9, INPUT);
+    delay(10);
     pinMode(9, OUTPUT);
     //reset RFM module
     digitalWrite(9, 1);
@@ -446,9 +456,6 @@ void before() {
     pinMode(9, INPUT);
     delay(10);
 
-    #ifdef NO_PIR_SENSOR_INSTALLED
-          digitalWrite(7,INPUT_PULLUP);
-    #endif
   
     pinMode(RED_LED_PIN, OUTPUT);
     digitalWrite(RED_LED_PIN,0);
@@ -573,10 +580,12 @@ void loop()
   Serial.print(" digitalRead(PIR_PIN): ");
   Serial.println(digitalRead(PIR_PIN));
 */
+
   if ( !flagIntMagnet && (!flagIntPIR || (flagIntPIR && digitalRead(PIR_PIN) == LOW )) ){ // make sure no changes in PIR and magnet sensor happened while we were sending reports. 
       // hwSleep2 is rework of MySensors native sleep function to be able to sleep for some time and  wakeup on interrups CHANGE 
-      // Doesnot support smart sleep, FOTA nor TransportReady. just sleeps miliseconds provided with first parameter. 
-      hwSleep2(SENSORS_REPORT_TIME_MS, &flagIntPIR, &flagIntMagnet); 
+      // Doesnot support smart sleep, FOTA nor TransportReady. just sleeps miliseconds provided with first parameter.
+      sleep(0); 
+      //hwSleep2(SENSORS_REPORT_TIME_MS, &flagIntPIR, &flagIntMagnet); 
   }
 }
 
