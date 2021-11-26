@@ -31,14 +31,14 @@
 // ------------------------------------------ The node settings start
 
 // Define it if only the magnet sensor used and no PIR sensor installed
-//#define NO_PIR_SENSOR_INSTALLED
+#define NO_PIR_SENSOR_INSTALLED
 
 
 // Comment it out for Auto Node ID #
-#define MY_NODE_ID 220 // 
+#define MY_NODE_ID 217 // 7D
 
-int relayNodeIDPIRSensor  = 0x0; // Relay addressess to send switch ON\OFF states. Can be any address; 0 is SmartHome controller address.
-int relayNodeIDmagSensor  = 0x0; // Relay addressess to send switch ON\OFF states. Can be any address; 0 is SmartHome controller address.
+int relayNodeIDPIRSensor  = 0; // Relay addressess to send switch ON\OFF states. Can be any address; 0 is SmartHome controller address.
+int relayNodeIDmagSensor  = 0; // Relay addressess to send switch ON\OFF states. Can be any address; 0 is SmartHome controller address.
 
 // Uncomment either one. dpending on the Temperature and Humidity sensor installed on the board:
 #define TEMP_HUM_SENSOR_SHTC3
@@ -53,14 +53,14 @@ int relayNodeIDmagSensor  = 0x0; // Relay addressess to send switch ON\OFF state
 //  If Lux level redings above LUXTHRESHOLD PIR_aboveLUXthreshold_sensor will be reported to controller if motion detected
 //  PIR_aboveLUXthreshold_sensor is useful when lights set to ON but you still need motion detection.
 
-#define LUXTHRESHOLD 0xFFFF //  0xFFFF = always report PIR triggered sensor
+#define LUXTHRESHOLD 0 //  0xFFFF = always report PIR triggered sensor
 
 //  it only sends Humidity report when there has been some changes in humidity. If changes exceeds set % value the node will report it.
 #define HUMIDITY_HYSTERESIS_PERCENTS 10
 
 
-// Define miliseconds interval between desired sensors report. Set 0 to report each PIR door sensor triggered wakeup. 
-#define SENSORS_REPORT_TIME_MS 120000 //  0 sleep forever 1hr = 3600000 5hrs = 18000000
+// Define miliseconds interval between desired sensors report times. Set 0 to report each PIRor  door sensor triggered wakeup. 
+#define SENSORS_REPORT_TIME_MS 0 //  0 sleep forever 1hr = 3600000 5hrs = 18000000
 
 
 // Assign numbers for all sensors to be reported to the gateway\controller (they will be created as child devices)
@@ -77,15 +77,15 @@ int relayNodeIDmagSensor  = 0x0; // Relay addressess to send switch ON\OFF state
 
 // Enable and select radio type attached MY_RADIO_RFM69
 #define MY_RADIO_RFM69
-//#define MY_IS_RFM69HW
+#define MY_IS_RFM69HW
 #define MY_RFM69_TX_POWER_DBM (13u)
+#define  WAIT_RFM69_RETRY_TIMEOUT_MS 1000 //uint8_t retries=5, uint8_t retryWaitTime=200)
+
 
 // if you use MySensors 2.0 use this style 
 //#define MY_RFM69_FREQUENCY   RFM69_433MHZ
 //#define MY_RFM69_FREQUENCY   RFM69_868MHZ
-//#define MY_RFM69_FREQUENCY   RFM69_915MHZ
-
-
+#define MY_RFM69_FREQUENCY   RFM69_915MHZ
 
 // Enable and select radio type attached MY_RADIO_RFM95
 //#define MY_RADIO_RFM95
@@ -181,6 +181,9 @@ uint8_t batteryPcnt, oldBatteryPcnt = 0;
 volatile bool flagIntPIR = false, flagIntMagnet = false;
 uint8_t prevoiusMagnetPinValue = 0;
 
+
+
+
 //#define G_VALUE 16380
 //#define G_VALUE2 268304400 //G_VALUE * G_VALUE
 
@@ -198,7 +201,7 @@ ISR (PCINT2_vect){
 }
 
 void magnetSensorInterruptHandler(){
-  flagIntMagnet = true;
+  flagIntMagnet = true; 
 }
 
 void blinkSensorLed(int  i){
@@ -268,7 +271,7 @@ void batteryReport(){
     #endif
     #ifdef  MY_RADIO_RFM69
      // waiting up to xxx millis ACK of type 2 message t=2
-      wait(500, 3, 0);
+      wait(WAIT_RFM69_RETRY_TIMEOUT_MS, 3, 0);
     #endif
     oldBatteryPcnt = batteryPcnt;
   }
@@ -297,7 +300,7 @@ void lightReport()
       wait(RFM95_RETRY_TIMEOUT_MS, 1, 37);
     #endif
     #ifdef  MY_RADIO_RFM69
-      wait(500, 1, 37);
+      wait(WAIT_RFM69_RETRY_TIMEOUT_MS, 1, 37);
     #endif 
 
            
@@ -346,8 +349,8 @@ void TempHumReport()
         wait(RFM95_RETRY_TIMEOUT_MS, 1, 0);
       #endif
       #ifdef  MY_RADIO_RFM69
-       // waiting up to xxx millis ACK of type 2 message t=2
-        wait(500, 1, 0);
+       // waiting up to xxx millis ACK of type 0 message t=0
+        wait(WAIT_RFM69_RETRY_TIMEOUT_MS, 1, 0);
       #endif
       oldhumidity = humidity; 
     }
@@ -358,13 +361,13 @@ void TempHumReport()
       send(msg_temp.set(tempStr), true); // Send tempSi7021 temp sensor readings
       // this wait(); is 2.0 and up RFM69 specific. Hope to get rid of it soon
       // TSF:MSG:READ,0-0-209,s=3,c=1,t=1,pt=0,l=5,sg=0:34.00
-      // waiting up to xxx millis ACK of type 1 message t=1
+      // waiting up to xxx millis ACK of type 1 message t=0
       #ifdef  MY_RADIO_RFM95
         wait(RFM95_RETRY_TIMEOUT_MS, 1, 0);
       #endif
       #ifdef  MY_RADIO_RFM69
-       // waiting up to xxx millis ACK of type 2 message t=2
-        wait(500, 1, 0);
+       // waiting up to xxx millis ACK of type 2 message t=0
+        wait(WAIT_RFM69_RETRY_TIMEOUT_MS, 1, 0);
       #endif 
       oldTemp = temp;
    }
@@ -512,6 +515,7 @@ void loop()
 {
   int sendStatus;
   uint8_t magnetPinValue = digitalRead(MAGNET_PIN);
+  bool PIRPinValue; 
 
   batteryLevelRead();
   if ( flagIntPIR && digitalRead(PIR_PIN) == HIGH )  {
@@ -522,9 +526,19 @@ void loop()
       lightMeter.begin(BH1750::ONE_TIME_LOW_RES_MODE); // need for correct wake up
       if (lightMeter.readLightLevel(true) <= LUXthreshold){
         sendStatus =  send(msg_PIR.set(PIRValue),true);
+        if (!sendStatus) {
+         hwSleep2(5000, &flagIntPIR, &flagIntMagnet);  
+         if (flagIntMagnet ) magnetPinValue = digitalRead(MAGNET_PIN); // saving the value if wake up happend after magnet sensor trigger 
+         sendStatus =  send(msg_PIR.set(PIRValue),true); //Resendig PIR event anyways
+        }
         PIRValue ?  PIRValue  = 0: PIRValue = 1;  // inverting the value each time
       } else {
-        sendStatus =  send(msg_PIR_aboveLUXthreshold.set(PIR_aboveLUXthresholdValue),true);        
+        sendStatus =  send(msg_PIR_aboveLUXthreshold.set(PIR_aboveLUXthresholdValue),true);
+        if (!sendStatus) {
+         hwSleep2(5000, &flagIntPIR, &flagIntMagnet);
+         if (flagIntMagnet ) magnetPinValue = digitalRead(MAGNET_PIN); // saving the value if wake up happend after magnet sensor trigger 
+         sendStatus =  send(msg_PIR_aboveLUXthreshold.set(PIR_aboveLUXthresholdValue),true); //Resendig PIR event anyways
+        }        
         PIR_aboveLUXthresholdValue ?  PIR_aboveLUXthresholdValue  = 0: PIR_aboveLUXthresholdValue = 1;  // inverting the value each time
       }
       // wait for ACK signal up to RFM95_RETRY_TIMEOUT_MS or 50ms for rfm miliseconds
@@ -534,25 +548,32 @@ void loop()
       #ifdef  MY_RADIO_RFM69
        // TSF:MSG:READ,0-0-209,s=1,c=1,t=2,pt=2,l=2,sg=0:1
        // waiting up to xxx millis ACK of type 2 message t=2
-      wait(500, 1, 2);
+      wait(WAIT_RFM69_RETRY_TIMEOUT_MS, 1, 2);
       #endif
       // Blink  respective LED's once if message delivered to controller. 3 times if failed
       if (sendStatus) {
          blinkSensorLed(1);
       } else {
-         blinkSensorLed(3); 
+         blinkSensorLed(3);
       }
+
   } else if (flagIntPIR) {flagIntPIR = false;}
 
   
   if ( flagIntMagnet && magnetPinValue != prevoiusMagnetPinValue )  {
-      prevoiusMagnetPinValue = magnetPinValue;
       flagIntMagnet  = false;
+      prevoiusMagnetPinValue = magnetPinValue;
       //MagSensorValue ?  MagSensorValue  = 0: MagSensorValue = 1;  // inverting the value each time
       MagSensorValue = digitalRead(MAGNET_PIN);
       msg_mag.setDestination(relayNodeIDmagSensor); 
       // Blink  respective LED's once if message delivered to controller. 3 times if failed
-      send(msg_mag.set(MagSensorValue),true) ? blinkSensorLed(1) : blinkSensorLed(3);
+      sendStatus =  send(msg_mag.set(MagSensorValue),true) ;
+      if (!sendStatus) {
+       hwSleep2(5000, &flagIntPIR, &flagIntMagnet);
+       flagIntMagnet  = false;
+       if (digitalRead(PIR_PIN) == HIGH ) PIRPinValue = HIGH; // saving the value if wake up happend after magnet sensor trigger 
+       sendStatus =  send(msg_mag.set(MagSensorValue),true); //Resendig MagSensor event anyways
+      }              
       // wait for ACK signal up to RFM95_RETRY_TIMEOUT_MS or 50ms for rfm miliseconds
       // this wait(); is 2.0 and up RFM69 specific. Hope to get rid of it soon
       #ifdef  MY_RADIO_RFM95
@@ -563,29 +584,31 @@ void loop()
       #ifdef  MY_RADIO_RFM69
        // TSF:MSG:READ,0-0-209,s=1,c=1,t=2,pt=2,l=2,sg=0:1
        // waiting up to xxx millis ACK of type 2 message t=2
-       wait(500, 1, 2);
+       wait(WAIT_RFM69_RETRY_TIMEOUT_MS, 1, 2);
       #endif
-  }
+      
+      if (sendStatus) {
+         blinkSensorLed(1);
+      } else {
+         blinkSensorLed(3);
+      }
+
+  }  else if (flagIntMagnet){flagIntMagnet = false;}
+
 
   // Report all sensors
   lightReport(); 
   TempHumReport();
   batteryReport();
   
-/*
-  Serial.print("flagIntMagnet: ");
-  Serial.print(flagIntMagnet);
-  Serial.print(" flagIntPIR: ");
-  Serial.print(flagIntPIR);
-  Serial.print(" digitalRead(PIR_PIN): ");
-  Serial.println(digitalRead(PIR_PIN));
-*/
+
+
 
   if ( !flagIntMagnet && (!flagIntPIR || (flagIntPIR && digitalRead(PIR_PIN) == LOW )) ){ // make sure no changes in PIR and magnet sensor happened while we were sending reports. 
       // hwSleep2 is rework of MySensors native sleep function to be able to sleep for some time and  wakeup on interrups CHANGE 
       // Doesnot support smart sleep, FOTA nor TransportReady. just sleeps miliseconds provided with first parameter.
-      sleep(0); 
-      //hwSleep2(SENSORS_REPORT_TIME_MS, &flagIntPIR, &flagIntMagnet); 
+      //sleep(0); 
+      hwSleep2(SENSORS_REPORT_TIME_MS, &flagIntPIR, &flagIntMagnet); 
   }
 }
 
